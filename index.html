@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Game Bắn Súng</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-image: url(bg.jpg);
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        height: 100%;
+      }
+
+      body.game-started {
+        cursor: none;
+      }
+
+      canvas {
+        display: block;
+      }
+
+      #startBtn {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 20px 40px;
+        font-size: 28px;
+        font-weight: bold;
+        z-index: 10;
+        cursor: pointer;
+        border: 1px solid white;
+        border-radius: 10px;
+        color: white;
+        background-color: rgba(75, 26, 26, 0.3);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+
+      #ghost {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        object-fit: cover;
+        z-index: 20;
+      }
+
+      #scoreDisplay {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        font-size: 28px;
+        font-weight: bold;
+        z-index: 30;
+        font-family: Arial, sans-serif;
+        padding: 10px 20px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background-color: rgba(120, 103, 103, 0.3);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+
+      @keyframes shake {
+        0% { transform: translate(0, 0); }
+        10% { transform: translate(-10px, 5px); }
+        20% { transform: translate(10px, -5px); }
+        30% { transform: translate(-10px, 5px); }
+        40% { transform: translate(10px, -5px); }
+        50% { transform: translate(-5px, 2px); }
+        60% { transform: translate(5px, -2px); }
+        70% { transform: translate(-5px, 2px); }
+        80% { transform: translate(5px, -2px); }
+        90% { transform: translate(-2px, 1px); }
+        100% { transform: translate(0, 0); }
+      }
+
+      body.shake {
+        animation: shake 0.6s ease-in-out;
+      }
+    </style>
+  </head>
+  <body>
+    <button id="startBtn">Bắt đầu</button>
+    <canvas id="gameCanvas"></canvas>
+    <div id="scoreDisplay">
+      *Thể lệ trò chơi* <br />
+      - Bắn càng chính xác thì điểm càng cao<br />
+      - Tối đa có 3 lần bắn <br />
+    </div>
+    <img id="ghost" src="ghost.jpg" />
+    <audio id="scarySound" src="scary.mp3"></audio>
+
+    <script>
+      let score = 0;
+      let shotCount = 0;
+      let isGameStarted = false;
+      let mouseX = 0, mouseY = 0;
+      let flash = false;
+
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const scoreDisplay = document.getElementById("scoreDisplay");
+      const startBtn = document.getElementById("startBtn");
+      const ghost = document.getElementById("ghost");
+      const sound = document.getElementById("scarySound");
+
+      const backgroundImg = new Image();
+      backgroundImg.src = "t.png";
+
+      const targetImg = new Image();
+      targetImg.src = "target.png";
+
+      const target = {
+        x: 100,
+        y: 300,
+        width: 200,
+        height: 150,
+        speed: 3,
+        direction: 1
+      };
+
+      function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        if (isGameStarted) drawScene();
+      }
+
+      window.addEventListener("resize", resizeCanvas);
+
+      function drawScene() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(targetImg, target.x, target.y, target.width, target.height);
+
+        if (flash) {
+          ctx.fillStyle = "rgba(255,255,255,0.3)";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        drawCrosshair(mouseX, mouseY);
+      }
+
+      function drawCrosshair(x, y) {
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, y, 25, 0, Math.PI * 2);
+        ctx.moveTo(x - 35, y);
+        ctx.lineTo(x - 15, y);
+        ctx.moveTo(x + 15, y);
+        ctx.lineTo(x + 35, y);
+        ctx.moveTo(x, y - 35);
+        ctx.lineTo(x, y - 15);
+        ctx.moveTo(x, y + 15);
+        ctx.lineTo(x, y + 35);
+        ctx.stroke();
+      }
+
+      function updateTarget() {
+        target.x += target.speed * target.direction;
+        if (target.x <= 0 || target.x + target.width >= canvas.width) {
+          target.direction *= -1;
+        }
+      }
+
+      function showGhost() {
+        ghost.style.display = "block";
+        sound.play();
+        const interval = setInterval(() => {
+          document.body.classList.add("shake");
+          setTimeout(() => {
+            document.body.classList.remove("shake");
+          }, 600);
+        }, 500);
+      }
+
+      function gameLoop() {
+        updateTarget();
+        drawScene();
+        requestAnimationFrame(gameLoop);
+      }
+
+      function startGame() {
+        isGameStarted = true;
+        document.body.classList.add("game-started");
+        resizeCanvas();
+        drawScene();
+        gameLoop();
+
+        canvas.addEventListener("mousemove", (e) => {
+          const rect = canvas.getBoundingClientRect();
+          mouseX = e.clientX - rect.left;
+          mouseY = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener("click", () => {
+          shotCount++;
+          flash = true;
+          setTimeout(() => {
+            flash = false;
+          }, 100);
+
+          if (
+            mouseX >= target.x && mouseX <= target.x + target.width &&
+            mouseY >= target.y && mouseY <= target.y + target.height
+          ) {
+            score += 10;
+          } else {
+            score += 0;
+          }
+
+          scoreDisplay.textContent = `Điểm: ${score}`;
+
+          if (shotCount >= 3) {
+            showGhost();
+          }
+        });
+      }
+
+      startBtn.addEventListener("click", async () => {
+        startBtn.style.display = "none";
+        await document.documentElement.requestFullscreen();
+        startGame();
+        scoreDisplay.textContent = `Điểm: ${score}`;
+      });
+    </script>
+  </body>
+</html>
